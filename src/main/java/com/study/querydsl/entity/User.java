@@ -8,9 +8,10 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 public class User {
-
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private Long id;
 }
