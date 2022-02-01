@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
@@ -545,7 +546,7 @@ public class QueryDslBasicTest {
 
         if (usernameCond != null) {
             // builder에 and나 or 조건을 추가할 수 있음
-            // member.username과 usernameCond가 같다는 조건 추가가
+            // member.username과 usernameCond가 같다는 조건 추가
             builder.and(member.username.eq(usernameCond));
         }
         if (ageCond != null) {
@@ -588,5 +589,84 @@ public class QueryDslBasicTest {
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
 
+    @Test
+    //@Commit
+    public void bulkUpdate() {
 
+        // member1 = 10 -> 비회원
+        // member2 = 20 -> 비회원
+        // member3 = 30 -> member3
+        // member4 = 40 -> member4
+
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // 벌크 업데이트 시 1차 캐시와 DB의 상태가 다르다
+        // 1차 캐시와 DB의 데이터가 서로 다를 경우 1차 캐시의 정보를 반환한다.
+        // 따라서 영속성 컨텍스트 날리는 다음 처리
+
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+    }
+
+    @Test
+    public void bulkAdd() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1)) // add, multiply
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+
+        Assertions.assertThat(queryFactory.selectFrom(member).fetch().size()).isEqualTo(1);
+    }
+
+    @Test
+    public void sqlFunction() {
+        List<String> result = queryFactory
+                .select(Expressions.stringTemplate(
+                        "function('replace', {0}, {1}, {2})",
+                        member.username,
+                        "member",
+                        "M"
+                ))
+                .from(member)
+                .fetch();
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    public void sqlFunction2() {
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+  //              .where(member.username.eq(
+        //                Expressions.stringTemplate("function('lower',{0})"
+       //                         , member.username)))
+                .where(member.username.eq(member.username.lower()))
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
 }
